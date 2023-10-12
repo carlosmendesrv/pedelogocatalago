@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+      - name: api
+        image: carlosmendesrv/pedelogo-catalogo:latest
+
+        readinessProbe:
+          httpGet:
+            path: /read
+            port: 80
+            scheme: HTTP
+          periodSeconds: 5 # De quanto tempo estou validando 10s
+          timeoutSeconds: 1 # Quando tempo ele espera para ter resposta
+          failureThreshold: 3 # Vou aguardar 3 erros antes de reiniciar
+
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 80
+            scheme: HTTP
+          failureThreshold: 10
+          periodSeconds: 30
+
+        # Testa a saude do POD
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+            scheme: HTTP
+          #initialDelaySeconds: 5
+          periodSeconds: 5 # De quanto tempo estou validando 10s
+          timeoutSeconds: 3 # Quando tempo ele espera para ter resposta
+          failureThreshold: 1 # Vou aguardar 3 erros antes de reiniciar
+
+        ports:
+        - containerPort: 80
+        imagePullPolicy: Always
+        envFrom:
+        - configMapRef:
+            name: api-configmap
+        env:
+        - name: Mongo__User
+          valueFrom:
+            secretKeyRef:
+              key: MONGO_INITDB_ROOT_USERNAME
+              name: mongodb-secret
+        - name: Mongo__Password
+          valueFrom:
+            secretKeyRef:
+              key: MONGO_INITDB_ROOT_PASSWORD
+              name: mongodb-secret
